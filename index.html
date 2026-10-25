@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>包装指図書</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=BIZ+UDGothic:wght@700&display=swap">
+<style>
+/* ===== 設定はスクリプト先頭の GAS_URL だけ ===== */
+:root{
+  --bg:#eef1f0; --panel:#ffffff; --ink:#18201f; --sub:#5b6866; --line:#cdd5d3;
+  --accent:#0f6b5f; --accent-ink:#ffffff; --todo:#b86a00; --todo-bg:#fff3df; --done:#1f7a3a; --done-bg:#e3f3e7; --err:#b42318; --err-bg:#fde8e7;
+  --font:"BIZ UDPGothic","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
+  --num:"BIZ UDGothic","BIZ UDPGothic",Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px}
+.wrap{max-width:860px;margin:0 auto;padding-inline:16px;padding-block:16px 40px;display:flex;flex-direction:column;gap:14px}
+h1{font-size:1.4rem;margin:0}
+.bar{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:12px}
+.lbl{font-size:.8rem;color:var(--sub);letter-spacing:.05em;margin-bottom:4px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button{font-family:var(--font);cursor:pointer;touch-action:manipulation}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.seg{min-height:64px;min-width:110px;flex:1;font-size:1.15rem;font-weight:700;border-radius:10px;border:2px solid var(--line);background:var(--bg);color:var(--ink)}
+.seg[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.date{font-family:var(--num);font-size:1.4rem;flex:1;text-align:center}
+.arrow{min-height:64px;min-width:72px;font-size:1.4rem;border-radius:10px;border:2px solid var(--line);background:var(--bg);color:var(--ink)}
+.msg{border-radius:10px;padding:12px;font-weight:700}
+.msg.err{background:var(--err-bg);color:var(--err)}
+.msg.ok{background:var(--done-bg);color:var(--done)}
+.msg.wait{background:var(--todo-bg);color:var(--todo)}
+.msg button{margin-left:8px;min-height:48px;padding:0 16px;border-radius:8px;border:0;background:var(--todo);color:#fff;font-weight:700}
+.progress{font-family:var(--num);color:var(--sub)}
+.list{display:flex;flex-direction:column;gap:10px}
+.item{display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:center;background:var(--panel);border:2px solid var(--line);border-radius:12px;padding:14px 16px;text-align:left;color:var(--ink);min-height:84px;width:100%}
+.item .name{font-size:1.2rem;font-weight:700;min-width:0}
+.item .code{font-family:var(--num);color:var(--sub);font-size:.9rem;margin-right:6px}
+.item .meta{font-size:.95rem;color:var(--sub);font-variant-numeric:tabular-nums}
+.item .st{grid-row:1/3;grid-column:2;font-weight:700;border-radius:999px;padding:8px 14px;white-space:nowrap}
+.st.todo{background:var(--todo-bg);color:var(--todo)}
+.st.done{background:var(--done-bg);color:var(--done)}
+.item.is-done{border-color:var(--done)}
+.empty{color:var(--sub);text-align:center;padding:32px 8px}
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;z-index:5}
+.pane{background:var(--panel);width:100%;max-width:860px;border-radius:16px 16px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));display:grid;gap:12px;max-height:100%;overflow:auto}
+.pane h2{margin:0;font-size:1.3rem}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.f{border:2px solid var(--line);border-radius:10px;padding:8px 12px;background:var(--bg);text-align:left;color:var(--ink);min-height:76px}
+.f[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset}
+.f .v{font-family:var(--num);font-size:1.7rem;display:block;min-height:1.6em}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.k{min-height:68px;font-family:var(--num);font-size:1.7rem;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.k.wide{font-family:var(--font);font-size:1.15rem}
+.act{display:grid;grid-template-columns:1fr 2fr;gap:8px}
+.act button{min-height:68px;font-size:1.2rem;font-weight:700;border-radius:10px}
+.cancel{background:var(--bg);color:var(--ink);border:2px solid var(--line)}
+.ok{background:var(--accent);color:var(--accent-ink);border:0}
+.ok:disabled{opacity:.45}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>包装指図書</h1>
+  <section class="bar">
+    <div>
+      <div class="lbl">製造日</div>
+      <div class="row"><button class="arrow" id="prev" type="button" aria-label="前の日">◀</button><div class="date" id="date"></div><button class="arrow" id="next" type="button" aria-label="次の日">▶</button></div>
+    </div>
+    <div><div class="lbl">ライン</div><div class="row" id="lines"></div></div>
+    <div><div class="lbl">担当</div><div class="row" id="staff"></div></div>
+  </section>
+  <div id="msg" class="msg" hidden></div>
+  <div class="row" style="justify-content:space-between"><span class="progress" id="prog"></span></div>
+  <div class="list" id="list"><p class="empty">ラインを選んでください。</p></div>
+</div>
+
+<div class="sheet" id="sheet" hidden>
+  <div class="pane" role="dialog" aria-modal="true" aria-labelledby="ptitle">
+    <h2 id="ptitle"></h2>
+    <div class="lbl" id="psub"></div>
+    <div class="fields" id="fields"></div>
+    <div class="pad" id="pad"></div>
+    <div class="act"><button class="cancel" id="cancel" type="button">やめる</button><button class="ok" id="ok" type="button">確定して送る</button></div>
+  </div>
+</div>
+
+<script>
+// ★ ここにApps ScriptのウェブアプリURL(…/exec)を貼る
+const GAS_URL = "PASTE_YOUR_WEB_APP_URL_HERE";
+// ★ この端末の名前(包装1〜5など)
+// 端末名: URLに ?device=包装2 を付けて一度開くと、その端末に記憶される
+let DEVICE = "包装1";
+try{ const q=new URLSearchParams(location.search).get("device"); if(q) localStorage.setItem("device",q); DEVICE = localStorage.getItem("device") || DEVICE }catch(e){}
+
+const LINES = ["食パン","ロール","サンド","菓子パン"];
+const QKEY = "hoso_queue";
+let day = new Date(); day.setHours(0,0,0,0);
+let line = null, who = null; try{ line = localStorage.getItem("line") }catch(e){}
+// 夜勤対応: 朝5時までは前日の製造日を表示
+if (new Date().getHours() < 5) day.setDate(day.getDate()-1);
+let items = [], staff = [], cur = null, field = "out", buf = "", tmp = {};
+const $ = id => document.getElementById(id);
+const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const WD = "日月火水木金土";
+const fmt = n => (n===""||n==null) ? "" : Number(n).toLocaleString();
+
+function fieldsFor(){
+  const f=[["out","出来高",true],["waste","余剰廃棄"],["spare","予備"],["count","包装機カウント"]];
+  if(line==="サンド") f.push(["kenpin","金検OKカウント"]);
+  return f;
+}
+function show(text, kind, retry){
+  const m=$("msg"); if(!text){m.hidden=true;return}
+  m.hidden=false; m.className="msg "+kind; m.textContent=text;
+  if(retry){const b=document.createElement("button");b.type="button";b.textContent="もう一度送る";b.onclick=flush;m.appendChild(b)}
+}
+function seg(el,list,sel,on){el.innerHTML="";list.forEach(t=>{const b=document.createElement("button");b.type="button";b.className="seg";b.textContent=t;b.setAttribute("aria-pressed",t===sel);b.onclick=()=>on(t);el.appendChild(b)})}
+
+function renderHead(){
+  $("date").textContent=`${day.getFullYear()}/${day.getMonth()+1}/${day.getDate()}(${WD[day.getDay()]})`;
+  seg($("lines"),LINES,line,t=>{line=t;try{localStorage.setItem("line",t)}catch(e){}load()});
+  seg($("staff"),staff,who,t=>{who=t;renderHead()});
+}
+function renderList(){
+  const L=$("list"); L.innerHTML="";
+  if(!line){L.innerHTML='<p class="empty">ラインを選んでください。</p>';$("prog").textContent="";return}
+  if(!items.length){L.innerHTML='<p class="empty">この日のオーダーが登録されていません。事務所の「オーダー登録」シートを確認してください。</p>';$("prog").textContent="";return}
+  let done=0;
+  items.forEach((it,i)=>{
+    const s=it.saved, ok=!!s; if(ok)done++;
+    const b=document.createElement("button"); b.type="button"; b.className="item"+(ok?" is-done":"");
+    b.innerHTML=`<span class="name"><span class="code">${it.code||""}</span>${it.name}</span>
+      <span class="st ${ok?"done":"todo"}">${ok?(s.pending?"送信待ち":"入力済"):"未入力"}</span>
+      <span class="meta">オーダー ${fmt(it.order)}${it.box?` ・ 箱入 ${it.box}`:""}${ok?` ・ 出来高 <b>${fmt(s.out)}</b> ・ ${s.time||""}`:""}</span>`;
+    b.onclick=()=>openItem(i); L.appendChild(b);
+  });
+  $("prog").textContent=`${done} / ${items.length} 品目 入力済`;
+}
+
+async function load(){
+  renderHead(); if(!line) return renderList();
+  show("読み込み中…","wait");
+  try{
+    const r=await fetch(`${GAS_URL}?action=load&date=${ymd(day)}&line=${encodeURIComponent(line)}`);
+    const j=await r.json(); if(!j.ok) throw new Error(j.error);
+    items=j.items; staff=j.staff; if(!staff.includes(who)) who=null;
+    // 送信待ちの記録を画面に反映
+    queue().filter(q=>q.date===ymd(day)).forEach(q=>{const it=items.find(x=>x.itemId===q.itemId); if(it) it.saved={...q,pending:true}});
+    show("");
+  }catch(e){ items=[]; show("読み込めませんでした。電波を確認して、もう一度ラインを押してください。("+e.message+")","err"); }
+  renderHead(); renderList();
+  if(queue().length) show(`送信待ちが ${queue().length} 件あります。`,"wait",true);
+}
+
+function openItem(i){
+  if(!who){show("先に担当を選んでください。","err");return}
+  cur=i; const it=items[i]; tmp={...(it.saved||{})}; field="out"; buf=tmp.out!=null&&tmp.out!==""?String(tmp.out):"";
+  $("ptitle").textContent=it.name; $("psub").textContent=`オーダー数 ${fmt(it.order)}`+(it.saved?" ・ 修正すると前の記録は取消になります":"");
+  drawSheet(); $("sheet").hidden=false;
+}
+function commit(){tmp[field]=buf===""?"":Number(buf)}
+function drawSheet(){
+  const F=fieldsFor(); $("fields").innerHTML="";
+  F.forEach(([k,label,req])=>{const b=document.createElement("button");b.type="button";b.className="f";b.setAttribute("aria-pressed",k===field);
+    const v=k===field?buf:(tmp[k]??"");
+    b.innerHTML=`<span class="lbl">${label}${req?"(必須)":""}</span><span class="v">${v===""?"&nbsp;":fmt(v)}</span>`;
+    b.onclick=()=>{commit();field=k;buf=tmp[k]!=null&&tmp[k]!==""?String(tmp[k]):"";drawSheet()};$("fields").appendChild(b)});
+  $("pad").innerHTML="";
+  ["7","8","9","4","5","6","1","2","3","消す","0","次へ"].forEach(t=>{const b=document.createElement("button");b.type="button";b.className="k"+(t.length>1?" wide":"");b.textContent=t;
+    b.onclick=()=>{if(t==="消す")buf=buf.slice(0,-1);else if(t==="次へ"){commit();const i=F.findIndex(f=>f[0]===field);field=F[(i+1)%F.length][0];buf=tmp[field]!=null&&tmp[field]!==""?String(tmp[field]):""}else if(buf.length<6)buf=(buf==="0"?"":buf)+t;drawSheet()};
+    $("pad").appendChild(b)});
+  const outVal=field==="out"?buf:tmp.out; $("ok").disabled=(outVal===""||outVal==null);
+}
+$("cancel").onclick=()=>{$("sheet").hidden=true};
+$("ok").onclick=()=>{
+  commit(); if(tmp.out===""||tmp.out==null) return;
+  const it=items[cur], d=new Date();
+  const rec={sendId:crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random()),date:ymd(day),itemId:it.itemId,order:it.order,
+    out:tmp.out,waste:tmp.waste??"",spare:tmp.spare??"",count:tmp.count??"",kenpin:tmp.kenpin??"",
+    time:`${d.getHours()}:${String(d.getMinutes()).padStart(2,"0")}`,staff:who,replaceId:it.saved&&it.saved.id||""};
+  // まだ送れていない同じ品目の記録があれば、それを差し替える
+  let q=queue(); const old=q.findIndex(x=>x.date===rec.date&&x.itemId===rec.itemId);
+  if(old>=0 && !flushing){ rec.replaceId=q[old].replaceId; q.splice(old,1); }
+  it.saved={...rec,pending:true}; $("sheet").hidden=true; renderList();
+  q.push(rec); setQueue(q); flush();
+};
+
+function queue(){try{return JSON.parse(localStorage.getItem(QKEY)||"[]")}catch(e){return[]}}
+function setQueue(q){try{localStorage.setItem(QKEY,JSON.stringify(q))}catch(e){}}
+let flushing=false;
+async function flush(){
+  if(flushing) return; flushing=true;
+  let q=queue();
+  while(q.length){
+    const rec=q[0];
+    try{
+      const r=await fetch(GAS_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({sendId:rec.sendId,device:DEVICE,records:[rec]})});
+      const j=await r.json(); if(!j.ok) throw new Error(j.error);
+      const it=items.find(x=>x.itemId===rec.itemId&&rec.date===ymd(day));
+      if(it) it.saved={...rec,id:(j.ids||[])[0]||it.saved&&it.saved.id,pending:false};
+      q.shift(); setQueue(q);
+    }catch(e){
+      show(`送れませんでした。記録はこの端末に残っています(${q.length}件)。電波のよい場所で「もう一度送る」を押してください。`,"err",true);
+      flushing=false; renderList(); return;
+    }
+  }
+  flushing=false; renderList(); show("送信しました。","ok"); setTimeout(()=>show(""),2500);
+}
+$("prev").onclick=()=>{day.setDate(day.getDate()-1);load()};
+$("next").onclick=()=>{day.setDate(day.getDate()+1);load()};
+window.addEventListener("online",flush);
+load(); if(queue().length) flush();
+</script>
+</body>
+</html>
